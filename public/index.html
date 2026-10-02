@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Hap-Map Multiplayer (teaching exemplar)</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
+    <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+
+    <style>
+        :root {
+            --hap-navy: #16365c;
+            --hap-navy-light: #1f4d83;
+            --hap-accent: #f5a623;
+        }
+        html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
+        body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+        #map { background: #0b1622; }
+
+        #banner {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 7;
+            background: #7a1f1f; color: #fff; font-size: 12px; text-align: center;
+            padding: 4px 8px;
+        }
+        #banner a { color: #ffd; }
+
+        #title-card {
+            position: absolute; top: 34px; left: 54px; z-index: 5;
+            background: var(--hap-navy); color: #fff; padding: 8px 14px;
+            border-radius: 6px; box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            max-width: 280px;
+        }
+        #title-card h1 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+        #title-card p { margin: 0; font-size: 11px; opacity: 0.85; line-height: 1.4; }
+
+        #years {
+            position: absolute; top: 34px; right: 10px; z-index: 5;
+            background: rgba(255,255,255,0.95); border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.3); padding: 8px 6px;
+            display: flex; flex-direction: column; gap: 3px; max-height: 70vh;
+            overflow-y: auto;
+        }
+        #years button {
+            border: none; background: #eee; color: #16365c; font-size: 12px;
+            padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: 600;
+        }
+        #years button.active { background: var(--hap-navy); color: #fff; }
+
+        #who {
+            position: absolute; bottom: 10px; left: 10px; z-index: 5;
+            background: rgba(255,255,255,0.95); border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.3); padding: 8px 10px;
+            font-size: 12px; color: #16365c; display: flex; align-items: center; gap: 6px;
+        }
+        #who input {
+            border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-size: 12px;
+            width: 110px;
+        }
+        #who .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+        #peers {
+            position: absolute; bottom: 10px; right: 10px; z-index: 5;
+            background: rgba(255,255,255,0.9); border-radius: 8px;
+            padding: 6px 10px; font-size: 11px; color: #16365c; max-width: 200px;
+        }
+
+        .cursor-marker {
+            width: 14px; height: 14px; border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg); border: 2px solid white;
+            box-shadow: 0 0 3px rgba(0,0,0,0.5);
+        }
+        .cursor-label {
+            position: absolute; top: 14px; left: 10px; font-size: 10px;
+            background: rgba(0,0,0,0.65); color: #fff; padding: 1px 5px;
+            border-radius: 3px; white-space: nowrap; transform: rotate(45deg);
+            transform-origin: top left;
+        }
+        .pin-marker {
+            width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff;
+            box-shadow: 0 0 4px rgba(0,0,0,0.6); cursor: pointer;
+        }
+        #hint {
+            position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+            z-index: 5; background: rgba(0,0,0,0.6); color: #fff; font-size: 11px;
+            padding: 4px 10px; border-radius: 10px; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="banner">
+        TEACHING EXEMPLAR -- flunky first build, COMP4020 Agentic Coding Studio.
+        Imagery layers reused (unmodified) from
+        <a href="https://hapmap-dev.u5007063.workers.dev/" target="_blank">hapmap-dev</a>
+        (Bill's single-user research tool); 2004-2023 ACT Government imagery licence
+        for public reuse is unconfirmed -- treat as a technical proof of concept.
+    </div>
+
+    <div id="title-card">
+        <h1>Hap-Map Multiplayer</h1>
+        <p>A shared room over historical aerial imagery of North Canberra. Move your
+        mouse on the map to show others where you're looking. Click to drop a pin
+        everyone can see.</p>
+    </div>
+
+    <div id="hint">Click the map to drop a pin for everyone in this room</div>
+
+    <div id="years"></div>
+
+    <div id="who">
+        <span class="swatch" id="my-swatch"></span>
+        <input id="name-input" placeholder="your name" maxlength="40" />
+    </div>
+
+    <div id="peers">Connecting&hellip;</div>
+
+    <div id="map"></div>
+
+    <script type="module">
+        import { cogProtocol, setColorFunction }
+            from 'https://esm.sh/@geomatico/maplibre-cog-protocol@0.9.0';
+        maplibregl.addProtocol('cog', cogProtocol);
+
+        // Imagery config copied verbatim (same URLs, same EPSG:3857, same
+        // grayscale/no-data handling) from the real single-user tool at
+        // https://hapmap-dev.u5007063.workers.dev/ -- see README.md. We load
+        // the COGs and ACT ImageServer tiles directly, cross-origin (CORS is
+        // open on both), rather than copying/duplicating any imagery data.
+        const HAPMAP_DEV = 'https://hapmap-dev.u5007063.workers.dev';
+
+        function grayscaleWithNoData(pixel, color, metadata) {
+            const lum = pixel[0];
+            const alpha = pixel[1];
+            if (alpha === 0 || lum === metadata.noData || lum === null || isNaN(lum)) {
+                color.set([0, 0, 0, 0]);
+            } else {
+                color.set([lum, lum, lum, alpha === undefined ? 255 : alpha]);
+            }
+        }
+
+        const COG_1955 = HAPMAP_DEV + '/cog/north-canberra-1955-cac80-3857.tif';
+        const COG_1926 = HAPMAP_DEV + '/cog/canberra-1926-map3584-3857.tif';
+        const COG_1980 = HAPMAP_DEV + '/cog/canberra-1980-soc195-3857.tif';
+        setColorFunction(COG_1955, grayscaleWithNoData);
+        setColorFunction(COG_1926, grayscaleWithNoData);
+
+        function actImageryLayer(year, serviceName, resolutionLabel) {
+            const layerId = 'imagery-act-' + year;
+            return {
+                year, layerId,
+                addSource(map) {
+                    map.addSource(layerId, {
+                        type: 'raster',
+                        tiles: [
+                            'https://data4.actmapi.act.gov.au/arcgis/rest/services/ACT_IMAGERY_MGA2020/' +
+                            serviceName +
+                            '/ImageServer/exportImage?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png&f=image'
+                        ],
+                        tileSize: 256,
+                        attribution: '&copy; ACT Government -- historical aerial imagery (' + resolutionLabel + ', licence unconfirmed)'
+                    });
+                }
+            };
+        }
+
+        const IMAGERY_YEARS = [
+            { year: 1926, layerId: 'imagery-1926', addSource(map) {
+                map.addSource('imagery-1926', { type: 'raster', url: 'cog://' + COG_1926, tileSize: 512,
+                    attribution: '&copy; cc-by Geoscience Australia historical aerial photography (MAP3584 previews)' });
+            }},
+            { year: 1955, layerId: 'imagery-1955', addSource(map) {
+                map.addSource('imagery-1955', { type: 'raster', url: 'cog://' + COG_1955, tileSize: 512,
+                    attribution: '&copy; cc-by Geoscience Australia historical aerial photography' });
+            }},
+            { year: 1980, layerId: 'imagery-1980', addSource(map) {
+                map.addSource('imagery-1980', { type: 'raster', url: 'cog://' + COG_1980, tileSize: 512,
+                    attribution: '&copy; Hap-Map project -- SOC276-279 aerial survey' });
+            }},
+            actImageryLayer(2004, '2004_05_urban_150mm', '2004/05, 150mm'),
+            actImageryLayer(2009, '2009_03_urban_100mm', '2009/03, 100mm'),
+            actImageryLayer(2012, '2012_04_full_100mm', '2012/04, 100mm'),
+            actImageryLayer(2017, '2017_05_full_100mm', '2017/05, 100mm'),
+            actImageryLayer(2023, '2023_09_urban_75mm', '2023/09, 75mm'),
+            { year: 2025, layerId: 'imagery-2025', addSource(map) {
+                map.addSource('imagery-2025', {
+                    type: 'raster',
+                    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                    tileSize: 256, maxzoom: 19,
+                    attribution: 'Tiles &copy; Esri'
+                });
+            }},
+        ];
+        const BASE = IMAGERY_YEARS[IMAGERY_YEARS.length - 1];
+        let activeYear = BASE.year;
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            bounds: [[149.0712015, -35.3140388], [149.1567188, -35.2841504]],
+            fitBoundsOptions: { padding: 40 },
+            maxZoom: 21,
+            attributionControl: false,
+            style: { version: 8, sources: {}, layers: [
+                { id: 'background', type: 'background', paint: { 'background-color': '#0b1622' } }
+            ]}
+        });
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+        map.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
+
+        function applyImagery(year) {
+            IMAGERY_YEARS.forEach((entry) => {
+                if (entry === BASE) return;
+                map.setPaintProperty(entry.layerId, 'raster-opacity', entry.year === year ? 1 : 0);
+            });
+        }
+        function setYear(year) {
+            activeYear = year;
+            applyImagery(year);
+            document.querySelectorAll('#years button').forEach((b) => {
+                b.classList.toggle('active', Number(b.dataset.year) === year);
+            });
+        }
+
+        map.on('load', () => {
+            BASE.addSource(map);
+            map.addLayer({ id: BASE.layerId, type: 'raster', source: BASE.layerId, paint: { 'raster-opacity': 1 } });
+            IMAGERY_YEARS.forEach((entry) => {
+                if (entry === BASE) return;
+                entry.addSource(map);
+                map.addLayer({ id: entry.layerId, type: 'raster', source: entry.layerId,
+                    paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 500, delay: 0 } } });
+            });
+
+            const yearsEl = document.getElementById('years');
+            IMAGERY_YEARS.forEach((entry) => {
+                const btn = document.createElement('button');
+                btn.textContent = entry.year;
+                btn.dataset.year = entry.year;
+                btn.addEventListener('click', () => setYear(entry.year));
+                yearsEl.appendChild(btn);
+            });
+            setYear(BASE.year);
+        });
+
+        // --------------------------------------------------------------
+        // Multiplayer: one shared "lobby" room over a WebSocket to the
+        // Durable Object in src/worker.js. Shared state = live cursors +
+        // persisted pins; this is what makes the app multi-user/real-time.
+        // --------------------------------------------------------------
+        const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(wsProto + '//' + location.host + '/ws?room=lobby');
+
+        let myId = null, myColor = '#999';
+        const peerMarkers = new Map(); // id -> { marker, labelEl }
+        const pinMarkers = new Map(); // pin id -> marker
+
+        function peerCursorEl(color) {
+            const wrap = document.createElement('div');
+            wrap.style.position = 'relative';
+            const dot = document.createElement('div');
+            dot.className = 'cursor-marker';
+            dot.style.background = color;
+            wrap.appendChild(dot);
+            const label = document.createElement('div');
+            label.className = 'cursor-label';
+            wrap.appendChild(label);
+            return { wrap, label };
+        }
+
+        function upsertPeer(id, color, lng, lat, name) {
+            let entry = peerMarkers.get(id);
+            if (!entry) {
+                const { wrap, label } = peerCursorEl(color);
+                const marker = new maplibregl.Marker({ element: wrap }).setLngLat([lng, lat]).addTo(map);
+                entry = { marker, label };
+                peerMarkers.set(id, entry);
+            } else {
+                entry.marker.setLngLat([lng, lat]);
+            }
+            if (name) entry.label.textContent = name;
+        }
+        function removePeer(id) {
+            const entry = peerMarkers.get(id);
+            if (entry) { entry.marker.remove(); peerMarkers.delete(id); }
+        }
+        function addPin(pin) {
+            const el = document.createElement('div');
+            el.className = 'pin-marker';
+            el.style.background = pin.color;
+            el.title = (pin.authorName || 'anonymous') + ' (' + pin.year + '): ' + (pin.note || '');
+            const marker = new maplibregl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(map);
+            pinMarkers.set(pin.id, marker);
+        }
+
+        function renderPeerList(peers) {
+            const el = document.getElementById('peers');
+            const n = peerMarkers.size;
+            el.textContent = n === 0 ? 'You are the only one here' :
+                n + (n === 1 ? ' other person' : ' other people') + ' here';
+        }
+
+        ws.addEventListener('open', () => {
+            document.getElementById('peers').textContent = 'Connected';
+        });
+
+        ws.addEventListener('message', (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'init') {
+                myId = msg.id;
+                myColor = msg.color;
+                document.getElementById('my-swatch').style.background = myColor;
+                (msg.pins || []).forEach(addPin);
+                (msg.peers || []).forEach((p) => {
+                    if (p.cursor) upsertPeer(p.id, p.color, p.cursor.lng, p.cursor.lat, p.name);
+                });
+                renderPeerList();
+            } else if (msg.type === 'cursor') {
+                upsertPeer(msg.id, msg.color, msg.lng, msg.lat);
+                renderPeerList();
+            } else if (msg.type === 'name') {
+                const entry = peerMarkers.get(msg.id);
+                if (entry) entry.label.textContent = msg.name;
+            } else if (msg.type === 'pin') {
+                addPin(msg.pin);
+            } else if (msg.type === 'join') {
+                renderPeerList();
+            } else if (msg.type === 'leave') {
+                removePeer(msg.id);
+                renderPeerList();
+            }
+        });
+
+        let lastSent = 0;
+        map.on('mousemove', (e) => {
+            const now = Date.now();
+            if (now - lastSent < 80) return; // throttle to ~12/s
+            lastSent = now;
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'cursor', lng: e.lngLat.lng, lat: e.lngLat.lat }));
+            }
+        });
+
+        map.on('click', (e) => {
+            const note = window.prompt('Add a note for this pin (optional, shown to everyone):', '');
+            if (note === null) return; // cancelled
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'pin', lng: e.lngLat.lng, lat: e.lngLat.lat, year: activeYear, note
+                }));
+            }
+        });
+
+        const nameInput = document.getElementById('name-input');
+        nameInput.addEventListener('change', () => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'name', name: nameInput.value }));
+            }
+        });
+    </script>
+</body>
+</html>
