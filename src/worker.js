@@ -62,8 +62,12 @@ export class Room {
       color,
       name,
       peers: this.peerList(ws),
+      // Authoritative connected-session count (includes this session),
+      // not derived from "has this peer moved their mouse yet" client-side
+      // guesswork -- that undercounted silent joiners. See index.html.
+      count: this.sessions.size,
     }));
-    this.broadcast({ type: "join", id, color, name }, ws);
+    this.broadcast({ type: "join", id, color, name, count: this.sessions.size }, ws);
 
     ws.addEventListener("message", (event) => {
       let msg;
@@ -90,7 +94,7 @@ export class Room {
 
     const onClose = () => {
       this.sessions.delete(ws);
-      this.broadcast({ type: "leave", id }, null);
+      this.broadcast({ type: "leave", id, count: this.sessions.size }, null);
     };
     ws.addEventListener("close", onClose);
     ws.addEventListener("error", onClose);
