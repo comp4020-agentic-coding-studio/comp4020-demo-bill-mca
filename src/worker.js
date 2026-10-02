@@ -3,10 +3,15 @@
 // else (the MapLibre front end) is served as static Workers Assets from
 // ./public (see wrangler.toml [assets]).
 //
-// Shared state = live cursors + dropped "pins" inside one Durable Object
-// ("Room"). Real-time = WebSocket broadcast to every other connected session.
-// Persists = pins are written to the Durable Object's SQLite-backed storage,
-// so they survive reconnects, Worker restarts, and redeploys.
+// Shared state = live cursors, broadcast to every other connected session in
+// one Durable Object ("Room"). Each visitor gets a generic "Visitor N"
+// identity + colour assigned on connect (no login yet).
+//
+// Pins/annotations are deliberately switched OFF for now (2026-10-02): an
+// earlier version let anyone drop a named pin, persisted via the Durable
+// Object's SQLite-backed storage. With no login, "authorName" behind a pin
+// was meaningless, so the feature (and its persistence) is on hold until
+// there's real auth -- see index.html for the matching front-end note.
 //
 // Deliberately NOT implemented yet: the "trace logging" feature from the
 // real HAP research tool's seed design (opt-in consent, pooled observational
@@ -25,14 +30,7 @@ export class Room {
     this.state = state;
     this.env = env;
     this.sessions = new Map(); // WebSocket -> { id, color, name, cursor }
-    this.pins = null; // lazy-loaded from durable storage
-  }
-
-  async loadPins() {
-    if (this.pins === null) {
-      this.pins = (await this.state.storage.get("pins")) || [];
-    }
-    return this.pins;
+    this.visitorCount = 0; // in-memory, per-DO-instance counter for "Visitor N" names
   }
 
   async fetch(request) {
@@ -50,18 +48,22 @@ export class Room {
 
     const id = crypto.randomUUID();
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const session = { id, color, name: null, cursor: null };
+    // Generic identity assigned the moment someone opens the map -- no
+    // login yet, so everyone gets a stable, visible label right away
+    // instead of an anonymous blank dot. Still renameable client-side.
+    this.visitorCount += 1;
+    const name = "Visitor " + this.visitorCount;
+    const session = { id, color, name, cursor: null };
     this.sessions.set(ws, session);
 
-    const pins = await this.loadPins();
     ws.send(JSON.stringify({
       type: "init",
       id,
       color,
-      pins,
+      name,
       peers: this.peerList(ws),
     }));
-    this.broadcast({ type: "join", id, color }, ws);
+    this.broadcast({ type: "join", id, color, name }, ws);
 
     ws.addEventListener("message", (event) => {
       let msg;
@@ -74,25 +76,12 @@ export class Room {
       if (msg.type === "cursor") {
         session.cursor = { lng: msg.lng, lat: msg.lat };
         this.broadcast(
-          { type: "cursor", id, color: session.color, lng: msg.lng, lat: msg.lat },
+          { type: "cursor", id, color: session.color, lng: msg.lng, lat: msg.lat, name: session.name },
           ws
         );
-      } else if (msg.type === "pin") {
-        const pin = {
-          id: crypto.randomUUID(),
-          lng: msg.lng,
-          lat: msg.lat,
-          year: msg.year,
-          note: String(msg.note || "").slice(0, 280),
-          authorName: session.name || "anonymous",
-          color: session.color,
-          ts: Date.now(),
-        };
-        this.loadPins().then((list) => {
-          list.push(pin);
-          this.state.storage.put("pins", list);
-        });
-        this.broadcast({ type: "pin", pin }, null);
+        // Pins/annotations deliberately off for now (Bill, 2026-10-02): no
+        // login yet means no real authorship behind a dropped pin. See
+        // README.md / index.html for the re-enable note.
       } else if (msg.type === "name") {
         session.name = String(msg.name || "").slice(0, 40);
         this.broadcast({ type: "name", id, name: session.name }, ws);

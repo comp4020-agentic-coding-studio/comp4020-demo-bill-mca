@@ -99,11 +99,8 @@
     <div id="title-card">
         <h1>Hap-Map Multiplayer</h1>
         <p>A shared room over historical aerial imagery of North Canberra. Move your
-        mouse on the map to show others where you're looking. Click to drop a pin
-        everyone can see.</p>
+        mouse on the map to show everyone where you're looking.</p>
     </div>
-
-    <div id="hint">Click the map to drop a pin for everyone in this room</div>
 
     <div id="years"></div>
 
@@ -247,22 +244,36 @@
         // persisted pins; this is what makes the app multi-user/real-time.
         // --------------------------------------------------------------
         const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(wsProto + '//' + location.host + '/ws?room=lobby');
+        const roomName = new URLSearchParams(location.search).get('room') || 'lobby';
+        const ws = new WebSocket(wsProto + '//' + location.host + '/ws?room=' + encodeURIComponent(roomName));
 
         let myId = null, myColor = '#999';
         const peerMarkers = new Map(); // id -> { marker, labelEl }
-        const pinMarkers = new Map(); // pin id -> marker
+        const pinMarkers = new Map(); // pin id -> marker (feature off for now, kept for re-enable)
 
         function peerCursorEl(color) {
+            // NOTE: `wrap` is handed straight to `new maplibregl.Marker({element: wrap})`.
+            // MapLibre's own `.maplibregl-marker` class makes this element
+            // `position: absolute` so it shrink-wraps to its content and the
+            // translate(-50%,-50%) centering math is correct. Setting
+            // `wrap.style.position = 'relative'` here (the old bug) overrode
+            // that with an inline style, turning `wrap` into a normal block
+            // that stretches to the full map width -- which is why cursors
+            // rendered nowhere near the actual pointer. Fix: keep `wrap`
+            // untouched by maplibre, and put the position:relative context
+            // (needed so the label can be absolutely positioned against the
+            // dot) on a separate inner element instead.
             const wrap = document.createElement('div');
-            wrap.style.position = 'relative';
+            const inner = document.createElement('div');
+            inner.style.position = 'relative';
             const dot = document.createElement('div');
             dot.className = 'cursor-marker';
             dot.style.background = color;
-            wrap.appendChild(dot);
+            inner.appendChild(dot);
             const label = document.createElement('div');
             label.className = 'cursor-label';
-            wrap.appendChild(label);
+            inner.appendChild(label);
+            wrap.appendChild(inner);
             return { wrap, label };
         }
 
@@ -282,14 +293,10 @@
             const entry = peerMarkers.get(id);
             if (entry) { entry.marker.remove(); peerMarkers.delete(id); }
         }
-        function addPin(pin) {
-            const el = document.createElement('div');
-            el.className = 'pin-marker';
-            el.style.background = pin.color;
-            el.title = (pin.authorName || 'anonymous') + ' (' + pin.year + '): ' + (pin.note || '');
-            const marker = new maplibregl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(map);
-            pinMarkers.set(pin.id, marker);
-        }
+        // Pins/annotations are deliberately switched off for now (Bill, 2026-10-02):
+        // with no login yet, an anonymous click-to-pin feature has no real author
+        // identity behind it. addPin() is kept so it's a one-line re-enable once
+        // auth exists, but nothing calls it and the map no longer takes click input.
 
         function renderPeerList(peers) {
             const el = document.getElementById('peers');
@@ -308,19 +315,20 @@
                 myId = msg.id;
                 myColor = msg.color;
                 document.getElementById('my-swatch').style.background = myColor;
-                (msg.pins || []).forEach(addPin);
+                // Server assigns a generic identity ("Visitor N") the moment we
+                // connect -- prefill it so it's visible immediately, not blank
+                // until someone bothers to type a name.
+                if (msg.name) nameInput.value = msg.name;
                 (msg.peers || []).forEach((p) => {
                     if (p.cursor) upsertPeer(p.id, p.color, p.cursor.lng, p.cursor.lat, p.name);
                 });
                 renderPeerList();
             } else if (msg.type === 'cursor') {
-                upsertPeer(msg.id, msg.color, msg.lng, msg.lat);
+                upsertPeer(msg.id, msg.color, msg.lng, msg.lat, msg.name);
                 renderPeerList();
             } else if (msg.type === 'name') {
                 const entry = peerMarkers.get(msg.id);
                 if (entry) entry.label.textContent = msg.name;
-            } else if (msg.type === 'pin') {
-                addPin(msg.pin);
             } else if (msg.type === 'join') {
                 renderPeerList();
             } else if (msg.type === 'leave') {
@@ -336,16 +344,6 @@
             lastSent = now;
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'cursor', lng: e.lngLat.lng, lat: e.lngLat.lat }));
-            }
-        });
-
-        map.on('click', (e) => {
-            const note = window.prompt('Add a note for this pin (optional, shown to everyone):', '');
-            if (note === null) return; // cancelled
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'pin', lng: e.lngLat.lng, lat: e.lngLat.lat, year: activeYear, note
-                }));
             }
         });
 
