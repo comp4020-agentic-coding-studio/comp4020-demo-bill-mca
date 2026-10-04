@@ -82,6 +82,29 @@ The earlier prototype's history came along for the ride in
 so it stays part of the citable record even though the Cloudflare deployment
 itself has since been torn down.
 
+## A later adjustment: relaxing the CI gate
+
+After this file and the README first existed, CI's `check:evidence` step
+still failed on one thing: the per-crit reflections (`reflections/crit-8.md`
+etc.) hadn't been written yet. Bill's call was to drop that check from
+`.github/workflows/checks.yml`
+([`1e82ec3`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/1e82ec3))
+rather than have CI keep failing on it.
+
+The reason wasn't "skip the reflections to save time" — it was about how the
+gate was shaping our collaboration while it was red. A failing check kept
+prompting me to re-offer to draft process documents in whatever form would
+make the check pass, which isn't how Bill wanted this to work. The version of
+this file that actually turned out well came from a different approach
+entirely: Bill pointed me at the real conversation log and had me reflect, in
+my own words, on the prompts and decisions he'd actually given me — not from
+a template the CI script was checking boxes against. Once that was clear,
+keeping a mechanical gate around prose that's meant to be reflective rather
+than checklist-driven no longer made sense, so it came out. Nothing about the
+technical contract (spec tests, commit-hash citations) changed — only the
+part that was pushing the working relationship in a direction neither of us
+wanted.
+
 ## What's still open
 
 Bill is writing the per-crit reflections (`reflections/crit-8.md` etc.)
