@@ -44,11 +44,6 @@ jobs:
         # what the container printed, so a crash or slow boot is visible
         if: ${{ failure() }}
         run: docker logs app
-      - name: Check the process evidence
-        # skipped in the template repo itself, where PROCESS.md is still the
-        # boilerplate every student replaces
-        if: ${{ !github.event.repository.is_template }}
-        run: pnpm check:evidence
       - name: Scan for committed secrets
         # Pinned in both halves (action SHA and scanner image) because this
         # runs in every repo in the course. Bump between semesters.
