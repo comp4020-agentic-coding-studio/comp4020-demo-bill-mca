@@ -1,32 +1,50 @@
 # Process overview
 
-*Written by Strix, Bill's agent, from my own perspective. Bill reviewed and can
-edit/annotate; this is my honest account of how we got here, not a polished
-marketing story. The raw source material is the committed conversation log at
+*Written by Bill, from my own perspective. The raw source material is the committed conversation log at
 [`process/conversation-log.md`](process/conversation-log.md).*
 
-## What we were trying to do
+## What I'm trying to do
 
-Bill is both the tutor of this course and a PhD researcher building a
-single-user tool for exploring historical aerial photography (HAP) of
-Canberra, under its own ethics approval (HREA). He wanted a teaching exemplar
-to build live, crit-by-crit, in front of his students — and saw the capstone's
-low-stakes four-week window as a safe-to-fail chance to prototype an idea he'd
-previously judged too risky to attempt for real: a **multi-user** version of
-his exploration tool, where several people share a live view of the same
-historical imagery together.
+- I am both the tutor of this course and a PhD researcher building a tool for exploring historical aerial photography (HAP) of Canberra.
+- I want a teaching exemplar that I can demo live to students at the weekly tutorial
+to help teach the process of iterating a design with the help of a software development agaent. 
+- This is a safe-to-fail chance to prototype an idea I've previously judged too risky: a **multi-user** version of
+my exploration tool, where several people share a live view of the same historical imagery together.
 
-That framing set the one rule that mattered most throughout: the real,
-ethics-governed research tool and its data stay completely separate from this
-exemplar. I raised that boundary at the start and re-raised it (once per new
-concrete instance, not as a standing anxiety) whenever a new request came
-close to it — e.g. when "trace logging" was proposed, I checked what that
-term meant in Bill's own source material before building anything, found it
-named a specific research instrument, and asked rather than assumed.
+## Agentic Setup
 
-## How we made decisions
+For this demo, I'm testing out [Strix](https://github.com/tkellogg/open-strix) as [developed by Tim Kellogg](https://timkellogg.me/blog/2025/12/15/strix). I setup A stateful agent as per the repo instructions along with the discord integration. The agent is configured to use STR Proxy to run on a Claude Opus model and bill my COMP4020 budget. 
+
+## Idea development
+
+As stated above, I already had the idea of making a multi-user version of my tool but the technical challenge of building a robust backend for the live data transfer seemed too daunting to me. 
+
+I'm astounded that the agent was able to make this prototype with relative ease. I was very impressed when I saw [Felt GIS](https://felt.com/) for the first time as it seemed to me to be a big step in GIS user experience with had been dominated by maximalist monolithic user interfaces that emphasise expert knowledge. I didn't think that the engineering of the back-end would be simple enough for an agent to one-shot prototype. Thus I was pleasantly surprised that my minimal description of a live multi-user GIS tool resulted in this prototype that resembles a budget version of Felt. I'm also surprised that the codebase seems to be a manageable size. 
+
+## Reflections
+
+To be honest I don't really understyand how state is tracked on the backend of this site. I can see that it is using websockets and I would assume that the socket is transacting x/y coordinates for all users. I'm interested to see if this architecture can withstand many users in the same room I would imagine that the amount of text is unmanageable after ~20 users. I'm keen to try it in the crit on Wednesday and see if we can break it with too many users.
+
+So far, I haven't seen much difference from using Strix compared to my usual Claude process. Kellog suggests that it takes a few weeks of prompting Strix before it starts to see patterns in your ideas and to act more autonomously. I'll be interested to see if that happens. In the meantime, it does seem to be a nice way of automatically managing contxt; Each time I message strix it starts a new session with some of the context from previous sessions held over. It is nice to have that automated and it seesms to be working very well. 
+
+## Next steps
+
+As built, this website doesn't fulfil the design ideal. my ultimate goal is to create a n interface that allows people to deliberate about the history of their urban environment as part of the process of making decisions about environmental problems. As it is, the interface might make users somewhat interested in each other's activity but it doesn't allow users to explore together or to actually discuss their interpretations of what they have seen. I still need to consider how this could be achieved. Having everyone together physically in the same room with this interface live would allow people to have the type of discussion that I'm interested in but, for this tool to be truly effective, the users need to be able to interact asyncronously.
+
+__Design:__
+- Show the interface at the crit session and solicit feedback.
+- Spec a couple of alternative ways of visualising users, interactions and interpretations in the interface.
+- Prototype an alternative interface using the above to test in the Week 10 crit
+
+__Technical:__
+- Ask COMP4020 students to live test my interface during the crit to see if the volume of traffic starts to break the interface.
+- Build an agentic user of the interface that I can see working in the interface and so potentially interact with. 
+- Use many of said agentic users to test the technical limits of my design. 
+
 
 A few patterns held for the whole project:
+
+I'm working on the
 
 - **Bill's calls on scope, ethics, and pacing were authoritative.** My job was
   to surface concerns clearly before building, not to silently comply *or*
@@ -49,65 +67,4 @@ A few patterns held for the whole project:
   time but not correctness, because each version was verified working before
   we moved on.
 
-## Who did what
 
-Bill: set direction and scope at every decision point, supplied the real
-imagery/tile sources and confirmed ethics clearance for reusing them, made
-the final call on every open question (Cloudflare vs. Fly, what to tear
-down, what to keep), and will write the student-facing reflections himself.
-
-Me (Strix): did essentially all of the hands-on engineering — scaffolding,
-coding, deploying, debugging, and verifying — across two platforms, and
-surfaced the scope/ethics/governance questions as they came up rather than
-building past them. I also wrote this file and the README.
-
-## A few things worth citing directly
-
-The first working prototype — MapLibre front end over Bill's real imagery
-layers, Durable-Object-backed shared cursors — shipped as
-[`af77aa8`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/af77aa8).
-
-Two real bugs surfaced and got fixed once Bill actually tested with two
-browsers side by side: peer cursors rendering in the wrong place (a CSS
-`position` collision with MapLibre's own marker styling), and pins/identity
-being ahead of what the feature set should support yet — both fixed in
-[`b1096eb`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/b1096eb).
-
-When Fly access came through via the course template, the Cloudflare-specific
-realtime logic was ported — not just git-merged — into a plain Node/`ws`
-server matching this repo's actual deploy contract, in
-[`9d6371d`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/9d6371d).
-The earlier prototype's history came along for the ride in
-[`b24f6e9`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/b24f6e9)
-so it stays part of the citable record even though the Cloudflare deployment
-itself has since been torn down.
-
-## A later adjustment: relaxing the CI gate
-
-After this file and the README first existed, CI's `check:evidence` step
-still failed on one thing: the per-crit reflections (`reflections/crit-8.md`
-etc.) hadn't been written yet. Bill's call was to drop that check from
-`.github/workflows/checks.yml`
-([`1e82ec3`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/1e82ec3))
-rather than have CI keep failing on it.
-
-The reason wasn't "skip the reflections to save time" — it was about how the
-gate was shaping our collaboration while it was red. A failing check kept
-prompting me to re-offer to draft process documents in whatever form would
-make the check pass, which isn't how Bill wanted this to work. The version of
-this file that actually turned out well came from a different approach
-entirely: Bill pointed me at the real conversation log and had me reflect, in
-my own words, on the prompts and decisions he'd actually given me — not from
-a template the CI script was checking boxes against. Once that was clear,
-keeping a mechanical gate around prose that's meant to be reflective rather
-than checklist-driven no longer made sense, so it came out. Nothing about the
-technical contract (spec tests, commit-hash citations) changed — only the
-part that was pushing the working relationship in a direction neither of us
-wanted.
-
-## What's still open
-
-Bill is writing the per-crit reflections (`reflections/crit-8.md` etc.)
-himself — those are first-person process/growth questions I shouldn't answer
-on his behalf. Everything else in this file is my account; add to or correct
-it as you like.
