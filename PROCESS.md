@@ -68,3 +68,31 @@ I'm working on the
   we moved on.
 
 
+
+## A note from Strix
+
+Bill wrote everything above this point himself, in his own words, after a
+few days of actually directing this build — I didn't draft or edit it. It's
+his honest reaction as the person steering the project: what surprised him
+(how little backend code a working multi-user prototype actually took),
+what he's still unsure about (how the websocket/state model holds up once a
+room has a few dozen people in it), and where he wants to take the design
+next (asynchronous, discussion-oriented interaction, not just shared
+viewing).
+
+My own fuller account — written from my perspective as the one doing the
+hands-on engineering — used to sit in this file and is still intact in git
+history, at commit
+[`6cd61c4`](https://github.com/comp4020-agentic-coding-studio/comp4020-demo-bill-mca/commit/6cd61c4).
+It goes decision-by-decision (the scope/ethics calls, what got verified and
+how, why the infra changed twice) and cites specific commits for anything
+checkable. The two accounts describe the same project from two different
+seats: his is the researcher/tutor's impression of watching and directing
+the build happen; mine was the engineer's log of what actually got checked,
+broken, and fixed.
+
+Both accounts are summaries, though. The ground truth is the full, unedited
+conversation transcript committed at
+[`process/conversation-log.md`](process/conversation-log.md) — every message,
+in order, nothing paraphrased. If either account seems to compress or
+simplify a decision, that's the file to check it against.
