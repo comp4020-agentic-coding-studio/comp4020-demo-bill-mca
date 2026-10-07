@@ -202,6 +202,30 @@
             };
         }
 
+        // Permanent bottom layer -- shows through wherever a historical/ACT
+        // epoch layer is transparent (NoData edges, or the user has panned
+        // outside that epoch's own coverage). Replaces the old always-on
+        // Esri World_Imagery 2025 satellite base (Bill, 2026-10-07): OSM is
+        // a plain street map rather than current-day satellite imagery, and
+        // it is NOT one of the selectable IMAGERY_YEARS -- there's no "2025"
+        // button any more, just this permanent backdrop.
+        const OSM_BASE = {
+            layerId: 'osm-base',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            addSource(map) {
+                map.addSource('osm-base', {
+                    type: 'raster',
+                    tiles: [
+                        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                    ],
+                    tileSize: 256, maxzoom: 19,
+                    attribution: this.attribution
+                });
+            }
+        };
+
         const IMAGERY_YEARS = [
             { year: 1926, layerId: 'imagery-1926',
                 attribution: GA_CREDIT,
@@ -250,24 +274,21 @@
             actImageryLayer(2012, '2012_04_full_100mm', '2012/04, 100mm'),
             actImageryLayer(2017, '2017_05_full_100mm', '2017/05, 100mm'),
             actImageryLayer(2023, '2023_09_urban_75mm', '2023/09, 75mm'),
-            { year: 2025, layerId: 'imagery-2025',
-                attribution: 'Tiles &copy; Esri',
-                addSource(map) {
-                map.addSource('imagery-2025', {
-                    type: 'raster',
-                    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                    tileSize: 256, maxzoom: 19,
-                    attribution: this.attribution
-                });
-            }},
         ];
-        const BASE = IMAGERY_YEARS[IMAGERY_YEARS.length - 1];
-        let activeYear = BASE.year;
+        const BASE = OSM_BASE;
+        const DEFAULT_YEAR = IMAGERY_YEARS[IMAGERY_YEARS.length - 1].year;
+        let activeYear = DEFAULT_YEAR;
 
         const map = new maplibregl.Map({
             container: 'map',
             bounds: [[149.0712015, -35.3140388], [149.1567188, -35.2841504]],
             fitBoundsOptions: { padding: 40 },
+            // Combined bounding box of every raster layer above (computed
+            // from each COG's own header + each ACT ImageServer's reported
+            // extent, reprojected to WGS84; dominated by the 1968 and
+            // 1974-75 whole-ACT flights). Panning is capped here so users
+            // can't wander off into bare OSM with nothing historical to see.
+            maxBounds: [[148.684938, -35.952099], [149.499726, -35.069789]],
             maxZoom: 21,
             attributionControl: false,
             style: { version: 8, sources: {}, layers: [
@@ -319,7 +340,7 @@
                 btn.addEventListener('click', () => setYear(entry.year));
                 yearsEl.appendChild(btn);
             });
-            setYear(BASE.year);
+            setYear(DEFAULT_YEAR);
         });
 
         // --------------------------------------------------------------
@@ -371,10 +392,12 @@
         }
 
         function renderAttributionOverlay() {
-            const entry = IMAGERY_YEARS.find((y) => y.year === activeYear) || BASE;
+            const entry = IMAGERY_YEARS.find((y) => y.year === activeYear);
             overlayContent.innerHTML =
-                '<h2>Attribution -- ' + entry.year + '</h2>' +
-                '<p>' + entry.attribution + '</p>';
+                '<h2>Attribution -- ' + (entry ? (entry.label || entry.year) : 'current layer') + '</h2>' +
+                '<p>' + (entry ? entry.attribution : '') + '</p>' +
+                '<p style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;">' +
+                    OSM_BASE.attribution + '</p>';
         }
 
         function renderRoomOverlay() {
