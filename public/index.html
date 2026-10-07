@@ -156,11 +156,31 @@
             }
         }
 
+        // Unified credit string for every Geoscience Australia-sourced COG
+        // layer below (1926/1944/1945/1955/1968/1974-75/1980) -- MapLibre
+        // collapses identical attribution strings into a single credit.
+        const GA_CREDIT = '&copy; cc-by Image data derived from Geoscience Australia\'s <a href="https://www.ga.gov.au/scientific-topics/national-location-information/historical-aerial-photography">historical aerial photography collection</a>';
+
         const COG_1955 = HAPMAP_DEV + '/cog/north-canberra-1955-cac80-3857.tif';
-        const COG_1926 = HAPMAP_DEV + '/cog/canberra-1926-map3584-3857.tif';
+        // 2026-10-07: swapped to the full-scan Blag Map re-run -- the old
+        // preview-frame key (canberra-1926-map3584-3857.tif) was deleted
+        // from R2 after being superseded.
+        const COG_1926 = HAPMAP_DEV + '/cog/canberra-1926-map3584-blag-3857.tif';
+        const COG_1944 = HAPMAP_DEV + '/cog/act-1944-map658-753-blag-3857.tif';
+        const COG_1945 = HAPMAP_DEV + '/cog/canberra-1945-map1537-blag-3857.tif';
+        const COG_1968 = HAPMAP_DEV + '/cog/act-1968-cacc4-c15-blag-3857.tif';
+        const COG_1974 = HAPMAP_DEV + '/cog/act-1974-75-cas896-920-blag-3857.tif';
+        // 1980: deliberately NOT switched to the new Blag Map mosaic. That
+        // swap on the real tool fixed a ~200m misplacement bug specific to
+        // its old SOC276-279 layer; we've always used SOC195 here, which is
+        // sharper (0.32m vs 2.5m) and doesn't have that bug. Revisit once a
+        // full-scan Blag Map 1980 replaces SOC195 in the real tool.
         const COG_1980 = HAPMAP_DEV + '/cog/canberra-1980-soc195-3857.tif';
         setColorFunction(COG_1955, grayscaleWithNoData);
         setColorFunction(COG_1926, grayscaleWithNoData);
+        setColorFunction(COG_1944, grayscaleWithNoData);
+        setColorFunction(COG_1945, grayscaleWithNoData);
+        setColorFunction(COG_1974, grayscaleWithNoData);
 
         function actImageryLayer(year, serviceName, resolutionLabel) {
             const layerId = 'imagery-act-' + year;
@@ -184,19 +204,43 @@
 
         const IMAGERY_YEARS = [
             { year: 1926, layerId: 'imagery-1926',
-                attribution: '&copy; cc-by Geoscience Australia historical aerial photography (MAP3584 previews)',
+                attribution: GA_CREDIT,
                 addSource(map) {
                 map.addSource('imagery-1926', { type: 'raster', url: 'cog://' + COG_1926, tileSize: 512,
                     attribution: this.attribution });
             }},
+            { year: 1944, layerId: 'imagery-1944',
+                attribution: GA_CREDIT,
+                addSource(map) {
+                map.addSource('imagery-1944', { type: 'raster', url: 'cog://' + COG_1944, tileSize: 512,
+                    attribution: this.attribution });
+            }},
+            { year: 1945, layerId: 'imagery-1945',
+                attribution: GA_CREDIT,
+                addSource(map) {
+                map.addSource('imagery-1945', { type: 'raster', url: 'cog://' + COG_1945, tileSize: 512,
+                    attribution: this.attribution });
+            }},
             { year: 1955, layerId: 'imagery-1955',
-                attribution: '&copy; cc-by Geoscience Australia historical aerial photography',
+                attribution: GA_CREDIT,
                 addSource(map) {
                 map.addSource('imagery-1955', { type: 'raster', url: 'cog://' + COG_1955, tileSize: 512,
                     attribution: this.attribution });
             }},
+            { year: 1968, layerId: 'imagery-1968',
+                attribution: GA_CREDIT,
+                addSource(map) {
+                map.addSource('imagery-1968', { type: 'raster', url: 'cog://' + COG_1968, tileSize: 512,
+                    attribution: this.attribution });
+            }},
+            { year: 1974, label: '1974\u201375', layerId: 'imagery-1974',
+                attribution: GA_CREDIT,
+                addSource(map) {
+                map.addSource('imagery-1974', { type: 'raster', url: 'cog://' + COG_1974, tileSize: 512,
+                    attribution: this.attribution });
+            }},
             { year: 1980, layerId: 'imagery-1980',
-                attribution: '&copy; Hap-Map project -- SOC276-279 aerial survey',
+                attribution: GA_CREDIT,
                 addSource(map) {
                 map.addSource('imagery-1980', { type: 'raster', url: 'cog://' + COG_1980, tileSize: 512,
                     attribution: this.attribution });
@@ -270,7 +314,7 @@
             const yearsEl = document.getElementById('years');
             IMAGERY_YEARS.forEach((entry) => {
                 const btn = document.createElement('button');
-                btn.textContent = entry.year;
+                btn.textContent = entry.label || entry.year;
                 btn.dataset.year = entry.year;
                 btn.addEventListener('click', () => setYear(entry.year));
                 yearsEl.appendChild(btn);
