@@ -209,7 +209,7 @@
         // a plain street map rather than current-day satellite imagery, and
         // it is NOT selectable itself -- it's just this permanent backdrop.
         // Esri's current-day satellite imagery is back as a normal, selectable
-        // IMAGERY_YEARS entry further down ("2025 (satellite)"), per Bill's
+        // IMAGERY_YEARS entry further down (labeled just "2025"), per Bill's
         // follow-up request the same day -- it's just no longer the BASE.
         const OSM_BASE = {
             layerId: 'osm-base',
@@ -276,7 +276,7 @@
             actImageryLayer(2012, '2012_04_full_100mm', '2012/04, 100mm'),
             actImageryLayer(2017, '2017_05_full_100mm', '2017/05, 100mm'),
             actImageryLayer(2023, '2023_09_urban_75mm', '2023/09, 75mm'),
-            { year: 2025, label: '2025 (satellite)', layerId: 'imagery-2025-esri',
+            { year: 2025, label: '2025', layerId: 'imagery-2025-esri',
                 attribution: 'Tiles &copy; Esri',
                 addSource(map) {
                 map.addSource('imagery-2025-esri', {
