@@ -207,8 +207,10 @@
         // outside that epoch's own coverage). Replaces the old always-on
         // Esri World_Imagery 2025 satellite base (Bill, 2026-10-07): OSM is
         // a plain street map rather than current-day satellite imagery, and
-        // it is NOT one of the selectable IMAGERY_YEARS -- there's no "2025"
-        // button any more, just this permanent backdrop.
+        // it is NOT selectable itself -- it's just this permanent backdrop.
+        // Esri's current-day satellite imagery is back as a normal, selectable
+        // IMAGERY_YEARS entry further down ("2025 (satellite)"), per Bill's
+        // follow-up request the same day -- it's just no longer the BASE.
         const OSM_BASE = {
             layerId: 'osm-base',
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -274,6 +276,16 @@
             actImageryLayer(2012, '2012_04_full_100mm', '2012/04, 100mm'),
             actImageryLayer(2017, '2017_05_full_100mm', '2017/05, 100mm'),
             actImageryLayer(2023, '2023_09_urban_75mm', '2023/09, 75mm'),
+            { year: 2025, label: '2025 (satellite)', layerId: 'imagery-2025-esri',
+                attribution: 'Tiles &copy; Esri',
+                addSource(map) {
+                map.addSource('imagery-2025-esri', {
+                    type: 'raster',
+                    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                    tileSize: 256, maxzoom: 19,
+                    attribution: this.attribution
+                });
+            }},
         ];
         const BASE = OSM_BASE;
         const DEFAULT_YEAR = IMAGERY_YEARS[IMAGERY_YEARS.length - 1].year;
